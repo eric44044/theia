@@ -42,6 +42,7 @@ import { SearchInWorkspaceService } from './search-in-workspace-service';
 import { MEMORY_TEXT } from './in-memory-text-resource';
 import URI from '@theia/core/lib/common/uri';
 import * as React from 'react';
+import { SearchInWorkspacePreferences } from './search-in-workspace-preferences';
 
 const ROOT_ID = 'ResultTree';
 
@@ -115,6 +116,7 @@ export class SearchInWorkspaceResultTreeWidget extends TreeWidget {
     @inject(LabelProvider) protected readonly labelProvider: LabelProvider;
     @inject(WorkspaceService) protected readonly workspaceService: WorkspaceService;
     @inject(TreeExpansionService) protected readonly expansionService: TreeExpansionService;
+    @inject(SearchInWorkspacePreferences) protected readonly searchInWorkspacePreferences: SearchInWorkspacePreferences;
 
     constructor(
         @inject(TreeProps) readonly props: TreeProps,
@@ -586,6 +588,7 @@ export class SearchInWorkspaceResultTreeWidget extends TreeWidget {
     }
 
     protected renderResultLineNode(node: SearchInWorkspaceResultLineNode): React.ReactNode {
+        const lineNumber = this.searchInWorkspacePreferences['search.lineNumbers'] ? node.line : '';
         const prefix = node.character > 26 ? '... ' : '';
         return <div className={`resultLine noWrapInfo ${node.selected ? 'selected' : ''}`}>
             <span>
@@ -594,6 +597,9 @@ export class SearchInWorkspaceResultTreeWidget extends TreeWidget {
             {this.renderMatchLinePart(node)}
             <span>
                 {node.lineText.substr(node.character - 1 + node.length, 75)}
+            </span>
+            <span className='siw-lineNumber'>
+                {':' + lineNumber}
             </span>
         </div>;
     }
