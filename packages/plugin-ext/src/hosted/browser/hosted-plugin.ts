@@ -64,6 +64,8 @@ export class HostedPluginSupport {
     private theiaReadyPromise: Promise<any>;
     private frontendExtManagerProxy: PluginManagerExt;
     private backendExtManagerProxy: PluginManagerExt;
+    private loadedPlugins: string[] = [];
+    private rpc: RPCProtocol | undefined;
 
     constructor(
         @inject(PreferenceServiceImpl) private readonly preferenceServiceImpl: PreferenceServiceImpl,
@@ -110,6 +112,10 @@ export class HostedPluginSupport {
         if (initData.hostedPlugin) {
             initData.plugins.push(initData.hostedPlugin);
         }
+
+        // don't load plugins twice
+        initData.plugins = initData.plugins.filter(value => this.loadedPlugins.indexOf(value.model.id) < 0);
+
         const confStorage: ConfigStorage = {
             hostLogPath: initData.logPath,
             hostStoragePath: initData.storagePath || ''
@@ -151,9 +157,14 @@ export class HostedPluginSupport {
                     if (plugins.length >= 1) {
                         pluginID = getPluginId(plugins[0].model);
                     }
-                    const rpc = this.createServerRpc(pluginID, hostKey);
-                    setUpPluginApi(rpc, container);
-                    const hostedExtManager = rpc.getProxy(MAIN_RPC_CONTEXT.HOSTED_PLUGIN_MANAGER_EXT);
+
+                    // must be created only once
+                    if (!this.rpc) {
+                        this.rpc = this.createServerRpc(pluginID, hostKey);
+                        setUpPluginApi(this.rpc, container);
+                    }
+
+                    const hostedExtManager = this.rpc.getProxy(MAIN_RPC_CONTEXT.HOSTED_PLUGIN_MANAGER_EXT);
                     hostedExtManager.$init({
                         plugins: plugins,
                         preferences: getPreferences(this.preferenceProviderProvider),
@@ -162,10 +173,13 @@ export class HostedPluginSupport {
                         env: { queryParams: getQueryParameters() },
                         extApi: initData.pluginAPIs
                     }, confStorage);
-                    this.mainPluginApiProviders.getContributions().forEach(p => p.initialize(rpc, container));
+                    this.mainPluginApiProviders.getContributions().forEach(p => p.initialize(this.rpc!, container));
                     this.backendExtManagerProxy = hostedExtManager;
                 });
             }
+
+            // update list with loaded plugins
+            initData.plugins.forEach(value => this.loadedPlugins.push(value.model.id));
         });
     }
 
