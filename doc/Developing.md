@@ -91,7 +91,7 @@ Start your browser on https://localhost:3000.
 
 [Gitpod](http://gitpod.io/) is a Theia-based IDE for GitHub.
 You can start by prefixing any GitHub URL in the Theia repository with `gitpod.io/#`:
-- Open http://gitpod.io/#https://github.com/theia-ide/theia to start development with the master branch.
+- Open http://gitpod.io/#https://github.com/eric44044/theia to start development with the master branch.
 - Gitpod will start a properly configured for Theia development workspace, clone and build the Theia repository.
 - After the build is finished, run from the terminal in Gitpod:
 
