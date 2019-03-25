@@ -34,6 +34,7 @@ import { StoragePathService } from '../../main/browser/storage-path-service';
 import { getPreferences } from '../../main/browser/preference-registry-main';
 import { PluginServer } from '../../common/plugin-protocol';
 import { KeysToKeysToAnyValue } from '../../common/types';
+import { string } from 'prop-types';
 
 @injectable()
 export class HostedPluginSupport {
@@ -65,7 +66,9 @@ export class HostedPluginSupport {
     private frontendExtManagerProxy: PluginManagerExt;
     private backendExtManagerProxy: PluginManagerExt;
     private loadedPlugins: string[] = [];
-    private rpc: RPCProtocol | undefined;
+
+    // per #hostKey
+    private rpc: Map<string, RPCProtocol>;
 
     constructor(
         @inject(PreferenceServiceImpl) private readonly preferenceServiceImpl: PreferenceServiceImpl,
@@ -74,6 +77,7 @@ export class HostedPluginSupport {
         @inject(WorkspaceService) protected readonly workspaceService: WorkspaceService,
     ) {
         this.theiaReadyPromise = Promise.all([this.preferenceServiceImpl.ready, this.workspaceService.roots]);
+        this.rpc = new Map<string, RPCProtocol>();
 
         this.storagePathService.onStoragePathChanged(path => {
             this.updateStoragePath(path);
@@ -158,13 +162,15 @@ export class HostedPluginSupport {
                         pluginID = getPluginId(plugins[0].model);
                     }
 
-                    // must be created only once
-                    if (!this.rpc) {
-                        this.rpc = this.createServerRpc(pluginID, hostKey);
-                        setUpPluginApi(this.rpc, container);
+                    let rpc = this.rpc.get(hostKey);
+                    if (!rpc) {
+                        rpc = this.createServerRpc(pluginID, hostKey);
+                        setUpPluginApi(rpc, container);
+
+                        this.rpc.set(hostKey, rpc);
                     }
 
-                    const hostedExtManager = this.rpc.getProxy(MAIN_RPC_CONTEXT.HOSTED_PLUGIN_MANAGER_EXT);
+                    const hostedExtManager = rpc.getProxy(MAIN_RPC_CONTEXT.HOSTED_PLUGIN_MANAGER_EXT);
                     hostedExtManager.$init({
                         plugins: plugins,
                         preferences: getPreferences(this.preferenceProviderProvider),
@@ -173,7 +179,7 @@ export class HostedPluginSupport {
                         env: { queryParams: getQueryParameters() },
                         extApi: initData.pluginAPIs
                     }, confStorage);
-                    this.mainPluginApiProviders.getContributions().forEach(p => p.initialize(this.rpc!, container));
+                    this.mainPluginApiProviders.getContributions().forEach(p => p.initialize(rpc!, container));
                     this.backendExtManagerProxy = hostedExtManager;
                 });
             }
